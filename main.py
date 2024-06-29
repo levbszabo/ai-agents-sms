@@ -254,7 +254,6 @@ def send_initial_sms(request: SMSRequest, db: Session = Depends(get_db)):
         # Get or create user
         user = get_or_create_user(db, request.phone_number)
 
-        # Get or create conversation with job details
         conversation = get_or_create_conversation(
             db, user.user_id, agent_id, request.product_description)
 
@@ -314,7 +313,6 @@ async def sms_reply(request: Request, db: Session = Depends(get_db)):
             write_logs(db, 'sms', form_data, {"error": error}, 400)
             raise HTTPException(status_code=400, detail=error)
 
-        # Retrieve the job title and description from the conversation
         product_description = conversation.product_description
 
         # Retrieve all previous messages with "user" or "agent" as the speaker
