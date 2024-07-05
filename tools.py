@@ -147,8 +147,8 @@ class CalendarBookingTool(BaseTool):
                     "Missing required parameters: summary, start_time, or end_time")
 
             # Log inputs
-            print(f"Booking Meeting with summary: {summary}, start_time: {start_time}, end_time: {
-                  end_time}, description: {description}, attendees: {attendee_emails}")
+            print(f"""Booking Meeting with summary: {summary}, start_time: {start_time}, end_time: {
+                  end_time}, description: {description}, attendees: {attendee_emails}""")
 
             # Parse the input times as EST
             start = datetime.strptime(
