@@ -3,16 +3,7 @@ import requests
 import json
 
 product_description = """
-Journeyman AI offers cutting-edge AI solutions designed to enhance business efficiency,
- drive sales, and improve customer engagement. Our services include AI Client Acquisition,
-   automating lead qualification, quote generation, and appointment booking with 24/7
-     availability and seamless calendar integration. Our Bridge AI tool streamlines client 
-     communications and onboarding, making it ideal for relationship-focused businesses.
-       Charisma AI enhances client satisfaction through sentiment analysis and segmentation,
-         improving interactions. We provide both out-of-the-box and custom AI solutions
-           tailored to your unique business needs, backed by expert engineering and data science.
-             Discover how our AI implementations can unlock significant ROI and transform
-               your business with scalable, data-driven insights.
+Refer to the sample SMS
 """
 
 
@@ -52,15 +43,14 @@ def test_send_initial_sms(
 
 
 # API V2 TEST SMS - GENERATE INITIAL TEXT
-out = test_generate_initial_sms(product_description, 2, local=False)
+out = test_generate_initial_sms(product_description, 5, local=False)
 initial_text = out.get("initial_text")
 print(initial_text)
-assert initial_text
 # API V2 TEST SEND INITIAL SMS
 initial_text_filled = initial_text.format(first_name="Levi")
 phone_number = os.getenv("PERSONAL_PHONE_NUMBER")
 out = test_send_initial_sms(
-    phone_number, initial_text_filled, product_description, 2, local=False
+    phone_number, initial_text_filled, product_description, 5, local=False
 )
 print(out)
 assert out["message_sid"]

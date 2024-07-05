@@ -14,7 +14,10 @@ from langchain_core.pydantic_v1 import BaseModel as BaseModelLangchain
 from langchain_core.pydantic_v1 import Field as FieldLangchain
 from twilio.request_validator import RequestValidator
 from fixtures import SAMPLE_SMS as sample_sms
+from zoneinfo import ZoneInfo
+from datetime import datetime, timedelta
 from starlette.datastructures import FormData
+from tools import CalendarBookingTool
 
 # run this with
 # uvicorn main:app --reload
@@ -73,7 +76,7 @@ def generate_initial_text(product_description, sample, initial_prompt):
     return {"product_description": product_description, "body": out["body"]}
 
 
-def generate_text_response(conversation, product_description, prompt):
+def generate_text_response(conversation, product_description, tools, prompt):
     parser = JsonOutputParser(pydantic_object=TextMessage)
     model = ChatOpenAI(
         api_key=api_key,
@@ -87,7 +90,8 @@ def generate_text_response(conversation, product_description, prompt):
         input_variables=["conversation", "product_description"],
         partial_variables={"format_instructions": parser.get_format_instructions()},
     )
-    chain = prompt_template | model | parser
+    model_with_tools = model.bind_tools(tools)
+    chain = prompt_template | model_with_tools | parser
     out = chain.invoke(
         {"conversation": conversation, "product_description": product_description}
     )
@@ -310,10 +314,14 @@ async def sms_reply(request: Request, db: Session = Depends(get_db)):
     # url = str(request.url)
     # signature = request.headers.get("X-Twilio-Signature", "")
     form = await request.form()
-    # post_vars = {key: value for key, value in form.items()}
+    post_vars = {key: value for key, value in form.items()}
+    print(post_vars)
     agent_phone_number = form.get("To")
     phone_number = form.get("From")
     message_content = form.get("Body")
+    EST = ZoneInfo("America/New_York")
+    current_date = datetime.now(EST).strftime("%Y-%m-%d %I:%M %p")
+
     # if not validator.validate(url, post_vars, signature):
     #     raise HTTPException(
     #         status_code=403, detail="Invalid request signature.")
@@ -355,9 +363,10 @@ async def sms_reply(request: Request, db: Session = Depends(get_db)):
             else:
                 speaker = "unknown"
             conversation_history.append({"speaker": speaker, "text": msg.content})
-
+        calendar_tool = CalendarBookingTool()
+        tools = [calendar_tool]
         output = generate_text_response(
-            conversation_history, product_description, agent.prompt
+            conversation_history, product_description, tools, agent.prompt
         )
 
         # Add agent message to the conversation
