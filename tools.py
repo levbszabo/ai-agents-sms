@@ -108,9 +108,6 @@ if __name__ == "__main__":
         attendees_emails=["levente@journeymanai.io", "levbszabo@gmail.com"],
     )
 
-    print("Event created:", result["htmlLink"])
-    print("Google Meet link:", result["hangoutLink"])
-
 EST = ZoneInfo("America/New_York")
 
 
@@ -136,25 +133,22 @@ class CalendarBookingTool(BaseTool):
 
     def _run(self, **kwargs: Dict[str, Any]) -> str:
         try:
-            summary = kwargs.get('summary')
-            start_time = kwargs.get('start_time')
-            end_time = kwargs.get('end_time')
-            description = kwargs.get('description', '')
-            attendee_emails = kwargs.get('attendee_emails', '')
+            summary = kwargs.get("summary")
+            start_time = kwargs.get("start_time")
+            end_time = kwargs.get("end_time")
+            description = kwargs.get("description", "")
+            attendee_emails = kwargs.get("attendee_emails", "")
 
             if not all([summary, start_time, end_time]):
                 raise ValueError(
-                    "Missing required parameters: summary, start_time, or end_time")
-
-            # Log inputs
-            print(f"""Booking Meeting with summary: {summary}, start_time: {start_time}, end_time: {
-                  end_time}, description: {description}, attendees: {attendee_emails}""")
+                    "Missing required parameters: summary, start_time, or end_time"
+                )
 
             # Parse the input times as EST
-            start = datetime.strptime(
-                start_time, "%Y-%m-%d %I:%M %p").replace(tzinfo=EST)
-            end = datetime.strptime(
-                end_time, "%Y-%m-%d %I:%M %p").replace(tzinfo=EST)
+            start = datetime.strptime(start_time, "%Y-%m-%d %I:%M %p").replace(
+                tzinfo=EST
+            )
+            end = datetime.strptime(end_time, "%Y-%m-%d %I:%M %p").replace(tzinfo=EST)
 
             # Convert to UTC for storage
             start_utc = start.astimezone(pytz.UTC)
@@ -166,25 +160,22 @@ class CalendarBookingTool(BaseTool):
             # Always include levente@journeymanai.io and parse other attendees
             attendees_list = ["levente@journeymanai.io"]
             if attendee_emails:
-                attendees_list.extend([email.strip()
-                                      for email in attendee_emails.split(',')])
+                attendees_list.extend(
+                    [email.strip() for email in attendee_emails.split(",")]
+                )
 
             # Remove duplicates while preserving order
             attendees_list = list(dict.fromkeys(attendees_list))
 
-            # Log before creating event
-            print(f"Creating event with start_utc: {start_utc}, end_utc: {
-                  end_utc}, attendees: {attendees_list}")
-
-            result = create_event(summary, start_utc,
-                                  end_utc, description, attendees_list)
+            result = create_event(
+                summary, start_utc, end_utc, description, attendees_list
+            )
 
             # Convert the result times back to EST for display
             start_est = start_utc.astimezone(EST)
             end_est = end_utc.astimezone(EST)
 
             # Log successful creation
-            print(f"Meeting booked successfully: {result}")
 
             return f"Meeting booked in EST. Start: {start_est.strftime('%Y-%m-%d %I:%M %p')} EST, End: {end_est.strftime('%Y-%m-%d %I:%M %p')} EST. Attendees: {', '.join(attendees_list)}. Link: {result['htmlLink']}, Google Meet: {result['hangoutLink']}"
 
@@ -192,7 +183,6 @@ class CalendarBookingTool(BaseTool):
             return f"Error: {str(ve)}"
         except Exception as e:
             # Log any unexpected errors
-            print(f"An unexpected error occurred: {str(e)}")
             return f"An unexpected error occurred: {str(e)}"
 
     async def _arun(self, **kwargs: Dict[str, Any]) -> str:
