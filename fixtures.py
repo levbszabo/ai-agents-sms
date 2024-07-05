@@ -1,3 +1,4 @@
-SAMPLE_SMS = """Hey {first_name}, it's Levente from Journeyman AI. Thanks for your interest in customer segmentation! 🎉 Could you share your current challenges? We can generate a quote via text or schedule a chat. Let me know!
+SAMPLE_SMS = """Hey {first_name} hows it going? I'm Levente from Journeyman AI. Thanks for reaching out, what kind of business are you in? 
+I'm happy to help brainstorm some AI solutions for you, or if you have something specific in mind, lmk! 
 Reply STOP to opt-out
 """

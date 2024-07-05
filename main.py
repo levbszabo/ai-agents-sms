@@ -48,44 +48,54 @@ class SMSRequest(BaseModel):
 
 
 class TextMessage(BaseModelLangchain):
-    body: str = FieldLangchain(description='The body of the text message')
+    body: str = FieldLangchain(description="The body of the text message")
 
 
 # Langchain AI Functions
 
+
 def generate_initial_text(product_description, sample, initial_prompt):
     parser = JsonOutputParser(pydantic_object=TextMessage)
-    model = ChatOpenAI(api_key=api_key, organization=org_id,
-                       model='gpt-4o', temperature=0.0, max_tokens=1000)
+    model = ChatOpenAI(
+        api_key=api_key,
+        organization=org_id,
+        model="gpt-4o",
+        temperature=0.0,
+        max_tokens=1000,
+    )
     prompt = PromptTemplate(
         template=initial_prompt,
         input_variables=["sample", "product_description"],
-        partial_variables={
-            "format_instructions": parser.get_format_instructions()},
+        partial_variables={"format_instructions": parser.get_format_instructions()},
     )
     chain = prompt | model | parser
-    out = chain.invoke(
-        {"product_description": product_description, "sample": sample})
-    return {'product_description': product_description, 'body': out['body']}
+    out = chain.invoke({"product_description": product_description, "sample": sample})
+    return {"product_description": product_description, "body": out["body"]}
 
 
 def generate_text_response(conversation, product_description, prompt):
     parser = JsonOutputParser(pydantic_object=TextMessage)
-    model = ChatOpenAI(api_key=api_key, organization=org_id,
-                       model='gpt-4o', temperature=0.0, max_tokens=500)
+    model = ChatOpenAI(
+        api_key=api_key,
+        organization=org_id,
+        model="gpt-4o",
+        temperature=0.0,
+        max_tokens=500,
+    )
     prompt_template = PromptTemplate(
         template=prompt,
         input_variables=["conversation", "product_description"],
-        partial_variables={
-            "format_instructions": parser.get_format_instructions()},
+        partial_variables={"format_instructions": parser.get_format_instructions()},
     )
     chain = prompt_template | model | parser
-    out = chain.invoke({"conversation": conversation,
-                       "product_description": product_description})
-    return {'product_description': product_description, 'body': out['body']}
+    out = chain.invoke(
+        {"conversation": conversation, "product_description": product_description}
+    )
+    return {"product_description": product_description, "body": out["body"]}
 
 
 # DB Related Functions
+
 
 def get_db():
     """
@@ -111,15 +121,16 @@ def write_logs(db: Session, endpoint, request, response, status):
     :param status: The HTTP status code
     :return: The log object
     """
+
     def to_serializable(val):
         if isinstance(val, dict):
             return val
-        if hasattr(val, 'dict'):
+        if hasattr(val, "dict"):
             return val.dict()
         if isinstance(val, Response):
             return {
                 "content": val.body.decode(),  # Decode bytes to string
-                "media_type": val.media_type
+                "media_type": val.media_type,
             }
         if isinstance(val, FormData):
             return {key: val[key] for key in val}
@@ -129,7 +140,7 @@ def write_logs(db: Session, endpoint, request, response, status):
         endpoint=endpoint,
         request=json.dumps(to_serializable(request)),  # Serialize to JSON
         response=json.dumps(to_serializable(response)),  # Serialize to JSON
-        status=status
+        status=status,
     )
     db.add(log)
     db.commit()
@@ -146,8 +157,7 @@ def get_or_create_user(db: Session, phone_number: str, name: str = None):
     :param name: The user's name (optional)
     :return: The user object
     """
-    user = db.query(User).filter_by(
-        phone_number=phone_number).first()
+    user = db.query(User).filter_by(phone_number=phone_number).first()
     if not user:
         user = User(phone_number=phone_number, name=name)
         db.add(user)
@@ -169,26 +179,33 @@ def get_agent(db: Session, agent_id: int = None, phone_number: str = None):
     if agent_id is not None:
         agent = db.query(Agent).filter_by(agent_id=agent_id).first()
     elif phone_number is not None:
-        agent = db.query(Agent).filter_by(
-            phone_number=phone_number).first()
+        agent = db.query(Agent).filter_by(phone_number=phone_number).first()
     else:
         raise ValueError("Either agent_id or agent_phone must be provided.")
     return agent
 
 
-def get_or_create_conversation(db: Session, user_id: int, agent_id: int, product_description: str = None):
-    conversation = db.query(Conversation).filter_by(
-        user_id=user_id, agent_id=agent_id, status='ongoing').first()
+def get_or_create_conversation(
+    db: Session, user_id: int, agent_id: int, product_description: str = None
+):
+    conversation = (
+        db.query(Conversation)
+        .filter_by(user_id=user_id, agent_id=agent_id, status="ongoing")
+        .first()
+    )
     if not conversation:
         conversation = Conversation(
-            user_id=user_id, agent_id=agent_id, product_description=product_description)
+            user_id=user_id, agent_id=agent_id, product_description=product_description
+        )
         db.add(conversation)
         db.commit()
         db.refresh(conversation)
     return conversation
 
 
-def add_message(db: Session, conversation_id: int, sender: str, receiver: str, content: str):
+def add_message(
+    db: Session, conversation_id: int, sender: str, receiver: str, content: str
+):
     """
     Add a message to a conversation.
 
@@ -198,8 +215,12 @@ def add_message(db: Session, conversation_id: int, sender: str, receiver: str, c
     :param receiver: The receiver's phone number
     :param content: The message content
     """
-    message = Message(conversation_id=conversation_id,
-                      sender_phone_number=sender, receiver_phone_number=receiver, content=content)
+    message = Message(
+        conversation_id=conversation_id,
+        sender_phone_number=sender,
+        receiver_phone_number=receiver,
+        content=content,
+    )
     db.add(message)
     db.commit()
 
@@ -220,13 +241,13 @@ def generate_initial_sms(request: GenerateSMSRequest, db: Session = Depends(get_
     try:
         agent = get_agent(db, agent_id=request.agent_id)
         initial_text = generate_initial_text(
-            request.product_description, sample_sms, agent.initial_prompt)['body']
-        response = {'initial_text': initial_text}
-        write_logs(db, 'generate-initial-sms', request, response, status=200)
-        return {'initial_text': initial_text}
+            request.product_description, sample_sms, agent.initial_prompt
+        )["body"]
+        response = {"initial_text": initial_text}
+        write_logs(db, "generate-initial-sms", request, response, status=200)
+        return {"initial_text": initial_text}
     except Exception as e:
-        write_logs(db, 'generate-initial-sms', request,
-                   {'error': str(e)}, status=500)
+        write_logs(db, "generate-initial-sms", request, {"error": str(e)}, status=500)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -248,24 +269,29 @@ def send_initial_sms(request: SMSRequest, db: Session = Depends(get_db)):
         message = client.messages.create(
             body=request.initial_text,
             from_=twilio_phone_number,
-            to=request.phone_number
+            to=request.phone_number,
         )
 
         # Get or create user
         user = get_or_create_user(db, request.phone_number)
 
         conversation = get_or_create_conversation(
-            db, user.user_id, agent_id, request.product_description)
+            db, user.user_id, agent_id, request.product_description
+        )
 
         # Add initial agent message to the conversation
-        add_message(db, conversation.conversation_id,
-                    agent.phone_number, user.phone_number, request.initial_text)
+        add_message(
+            db,
+            conversation.conversation_id,
+            agent.phone_number,
+            user.phone_number,
+            request.initial_text,
+        )
         response = {"message_sid": message.sid}
-        write_logs(db, 'send-initial-sms', request, response, status=200)
+        write_logs(db, "send-initial-sms", request, response, status=200)
         return response
     except Exception as e:
-        write_logs(db, 'send-initial-sms', request,
-                   {'error': str(e)}, status=500)
+        write_logs(db, "send-initial-sms", request, {"error": str(e)}, status=500)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -286,8 +312,8 @@ async def sms_reply(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     # post_vars = {key: value for key, value in form.items()}
     agent_phone_number = form.get("To")
-    phone_number = form.get('From')
-    message_content = form.get('Body')
+    phone_number = form.get("From")
+    message_content = form.get("Body")
     # if not validator.validate(url, post_vars, signature):
     #     raise HTTPException(
     #         status_code=403, detail="Invalid request signature.")
@@ -300,17 +326,21 @@ async def sms_reply(request: Request, db: Session = Depends(get_db)):
         user = get_or_create_user(db, phone_number)
 
         # Get or create conversation
-        conversation = get_or_create_conversation(
-            db, user.user_id, agent.agent_id)
+        conversation = get_or_create_conversation(db, user.user_id, agent.agent_id)
         print(conversation.messages)
         # Add user message to the conversation
-        add_message(db, conversation.conversation_id, phone_number,
-                    agent.phone_number, message_content)
+        add_message(
+            db,
+            conversation.conversation_id,
+            phone_number,
+            agent.phone_number,
+            message_content,
+        )
 
         # Check if the conversation length is zero
         if len(conversation.messages) == 0:
             error = "No conversation history found."
-            write_logs(db, 'sms', form_data, {"error": error}, 400)
+            write_logs(db, "sms", form_data, {"error": error}, 400)
             raise HTTPException(status_code=400, detail=error)
 
         product_description = conversation.product_description
@@ -324,34 +354,44 @@ async def sms_reply(request: Request, db: Session = Depends(get_db)):
                 speaker = "agent"
             else:
                 speaker = "unknown"
-            conversation_history.append(
-                {"speaker": speaker, "text": msg.content})
+            conversation_history.append({"speaker": speaker, "text": msg.content})
 
         output = generate_text_response(
-            conversation_history, product_description, agent.prompt)
+            conversation_history, product_description, agent.prompt
+        )
 
         # Add agent message to the conversation
-        add_message(db, conversation.conversation_id,
-                    agent.phone_number, user.phone_number, output['body'])
+        add_message(
+            db,
+            conversation.conversation_id,
+            agent.phone_number,
+            user.phone_number,
+            output["body"],
+        )
 
         # Create Twilio response
         resp = MessagingResponse()
-        resp.message(output['body'])
+        resp.message(output["body"])
         response_xml = str(resp)
-        final_response = Response(
-            content=response_xml, media_type="application/xml")
+        final_response = Response(content=response_xml, media_type="application/xml")
 
         # Log the final response content in JSON format
-        write_logs(db, 'sms', form_data, {
-                   "content": output['body'], "media_type": "application/xml"}, 200)
+        write_logs(
+            db,
+            "sms",
+            form_data,
+            {"content": output["body"], "media_type": "application/xml"},
+            200,
+        )
         return final_response
     except Exception as e:
         print(str(e))
         form_data = {key: form[key] for key in form.keys()}
-        write_logs(db, 'sms', form_data, {'error': str(e)}, 500)
+        write_logs(db, "sms", form_data, {"error": str(e)}, 500)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
