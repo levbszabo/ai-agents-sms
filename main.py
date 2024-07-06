@@ -18,6 +18,9 @@ from zoneinfo import ZoneInfo
 from datetime import datetime, timedelta
 from starlette.datastructures import FormData
 from tools import CalendarBookingTool
+from langchain_core.prompts import ChatPromptTemplate
+from langchain.agents import create_tool_calling_agent, AgentExecutor
+
 
 # run this with
 # uvicorn main:app --reload
@@ -58,7 +61,6 @@ class TextMessage(BaseModelLangchain):
 
 
 def generate_initial_text(product_description, sample, initial_prompt):
-    parser = JsonOutputParser(pydantic_object=TextMessage)
     model = ChatOpenAI(
         api_key=api_key,
         organization=org_id,
@@ -69,33 +71,41 @@ def generate_initial_text(product_description, sample, initial_prompt):
     prompt = PromptTemplate(
         template=initial_prompt,
         input_variables=["sample", "product_description"],
-        partial_variables={"format_instructions": parser.get_format_instructions()},
     )
-    chain = prompt | model | parser
+    chain = prompt | model
     out = chain.invoke({"product_description": product_description, "sample": sample})
-    return {"product_description": product_description, "body": out["body"]}
+    return {"product_description": product_description, "body": out.content}
 
 
 def generate_text_response(conversation, product_description, tools, prompt):
-    parser = JsonOutputParser(pydantic_object=TextMessage)
+    EST = ZoneInfo("America/New_York")
+    current_date = datetime.now(EST).strftime("%Y-%m-%d %I:%M %p")
     model = ChatOpenAI(
         api_key=api_key,
         organization=org_id,
         model="gpt-4o",
         temperature=0.0,
-        max_tokens=500,
+        max_tokens=1500,
     )
     prompt_template = PromptTemplate(
         template=prompt,
-        input_variables=["conversation", "product_description"],
-        partial_variables={"format_instructions": parser.get_format_instructions()},
+        input_variables=[
+            "conversation",
+            "product_description",
+            "current_date",
+            "agent_scratchpad",
+        ],
     )
-    model_with_tools = model.bind_tools(tools)
-    chain = prompt_template | model_with_tools | parser
-    out = chain.invoke(
-        {"conversation": conversation, "product_description": product_description}
+    agent = create_tool_calling_agent(model, tools, prompt_template)
+    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+    out = agent_executor.invoke(
+        {
+            "conversation": conversation,
+            "product_description": product_description,
+            "current_date": current_date,
+        }
     )
-    return {"product_description": product_description, "body": out["body"]}
+    return {"product_description": product_description, "body": out["output"]}
 
 
 # DB Related Functions
@@ -319,12 +329,10 @@ async def sms_reply(request: Request, db: Session = Depends(get_db)):
     agent_phone_number = form.get("To")
     phone_number = form.get("From")
     message_content = form.get("Body")
-    EST = ZoneInfo("America/New_York")
-    current_date = datetime.now(EST).strftime("%Y-%m-%d %I:%M %p")
-
-    # if not validator.validate(url, post_vars, signature):
-    #     raise HTTPException(
-    #         status_code=403, detail="Invalid request signature.")
+    if post_vars.get("FromCountry") != "US":
+        error = "Only US numbers are supported."
+        write_logs(db, "sms", form, {"error": error}, 400)
+        raise HTTPException(status_code=400, detail=error)
     try:
         # Convert form data to dictionary for logging
         form_data = {key: form[key] for key in form.keys()}

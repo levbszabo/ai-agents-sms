@@ -8,7 +8,6 @@ import asyncio
 from langchain_core.tools import BaseTool
 
 import os
-import datetime
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 import pytz
@@ -91,22 +90,7 @@ def create_event(summary, start_time, end_time, description="", attendees_emails
 
 
 # Example usage
-if __name__ == "__main__":
-    # Calculate next Friday's date and time
-    today = datetime.datetime.now(pytz.utc)
-    next_friday = today + datetime.timedelta((4 - today.weekday()) % 7 + 1)
-    start_time = next_friday.replace(hour=16, minute=0, second=0, microsecond=0)
-    # Assume the meeting lasts 1 hour
-    end_time = start_time + datetime.timedelta(hours=1)
 
-    # Create a meeting with John Doe and add attendees
-    result = create_event(
-        summary="Meeting with John Doe",
-        start_time=start_time,
-        end_time=end_time,
-        description="Adding to the agenda of it the result of 99 + 99",
-        attendees_emails=["levente@journeymanai.io", "levbszabo@gmail.com"],
-    )
 
 EST = ZoneInfo("America/New_York")
 
@@ -187,3 +171,21 @@ class CalendarBookingTool(BaseTool):
 
     async def _arun(self, **kwargs: Dict[str, Any]) -> str:
         return await asyncio.to_thread(self._run, **kwargs)
+
+
+if __name__ == "__main__":
+    # Calculate next Friday's date and time
+    today = datetime.datetime.now(pytz.utc)
+    next_friday = today + datetime.timedelta((4 - today.weekday()) % 7 + 1)
+    start_time = next_friday.replace(hour=16, minute=0, second=0, microsecond=0)
+    # Assume the meeting lasts 1 hour
+    end_time = start_time + datetime.timedelta(hours=1)
+
+    # Create a meeting with John Doe and add attendees
+    result = create_event(
+        summary="Meeting with John Doe",
+        start_time=start_time,
+        end_time=end_time,
+        description="Adding to the agenda of it the result of 99 + 99",
+        attendees_emails=["levente@journeymanai.io", "levbszabo@gmail.com"],
+    )
