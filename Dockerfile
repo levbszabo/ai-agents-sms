@@ -14,9 +14,16 @@ COPY requirements.txt /app/
 
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install boto3
 
 # Copy the rest of the working directory contents into the container at /app
 COPY . /app
+
+# Copy the fetch_secrets.py script into the container
+COPY fetch_secrets.py /app/fetch_secrets.py
+
+# Fetch secrets from AWS Secrets Manager
+RUN python /app/fetch_secrets.py
 
 # Expose port 80
 EXPOSE 80
