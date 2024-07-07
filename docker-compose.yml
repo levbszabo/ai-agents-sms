@@ -5,7 +5,9 @@ services:
     container_name: ai-agents-sms
     expose:
       - "8001"
- 
+    volumes:
+      - ~/.aws:/root/.aws:ro
+      
   nginx:
     image: nginx:latest
     container_name: nginx-proxy

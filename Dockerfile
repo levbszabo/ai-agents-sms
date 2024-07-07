@@ -22,11 +22,8 @@ COPY . /app
 # Copy the fetch_secrets.py script into the container
 COPY fetch_secrets.py /app/fetch_secrets.py
 
-# Fetch secrets from AWS Secrets Manager
-RUN python /app/fetch_secrets.py
-
 # Expose port 80
 EXPOSE 80
 
-# Run uvicorn server
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
+# Run uvicorn server with secrets fetching
+CMD ["sh", "-c", "python /app/fetch_secrets.py && uvicorn main:app --host 0.0.0.0 --port 80"]
