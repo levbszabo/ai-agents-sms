@@ -250,7 +250,7 @@ def add_message(
 # ENDPOINTS
 
 
-@app.post("/generate-initial-sms")
+@app.post("/sms/generate-initial-sms")
 def generate_initial_sms(request: GenerateSMSRequest, db: Session = Depends(get_db)):
     """
     Endpoint to generate the initial SMS message.
@@ -273,7 +273,7 @@ def generate_initial_sms(request: GenerateSMSRequest, db: Session = Depends(get_
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/send-initial-sms")
+@app.post("/sms/send-initial-sms")
 def send_initial_sms(request: SMSRequest, db: Session = Depends(get_db)):
     """
     Endpoint to send the initial SMS message.
@@ -317,7 +317,7 @@ def send_initial_sms(request: SMSRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/sms")
+@app.post("/sms/sms")
 async def sms_reply(request: Request, db: Session = Depends(get_db)):
     """
     Endpoint to handle incoming SMS replies and generate appropriate responses.
