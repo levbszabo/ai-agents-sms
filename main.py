@@ -28,7 +28,6 @@ secrets = get_secret()
 # Set the secrets as environment variables
 for key, value in secrets.items():
     os.environ[key] = value
-    print(key, value)
 # run this with
 # uvicorn main:app --reload
 

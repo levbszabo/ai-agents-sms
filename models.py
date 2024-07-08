@@ -18,7 +18,6 @@ secrets = get_secret()
 # Set the secrets as environment variables
 for key, value in secrets.items():
     os.environ[key] = value
-    print(key, value)
 
 Base = declarative_base()
 
