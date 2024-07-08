@@ -19,10 +19,8 @@ RUN pip install boto3
 # Copy the rest of the working directory contents into the container at /app
 COPY . /app
 
-# Copy the fetch_secrets.py script into the container
-
-# Expose port 80
-EXPOSE 80
+# Expose port 8001
+EXPOSE 8001
 
 # Run uvicorn server with secrets fetching
-CMD ["sh", "-c", "python /app/fetch_secrets.py && uvicorn main:app --host 0.0.0.0 --port 80"]
+CMD ["sh", "-c", "python /app/fetch_secrets.py && uvicorn main:app --host 0.0.0.0 --port 8001"]
