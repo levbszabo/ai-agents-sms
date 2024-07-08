@@ -20,7 +20,7 @@ from starlette.datastructures import FormData
 from tools import CalendarBookingTool
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.agents import create_tool_calling_agent, AgentExecutor
-
+from fetch_secrets import get_secret
 
 # run this with
 # uvicorn main:app --reload
@@ -31,6 +31,12 @@ from models import Conversation, Message, engine, SessionLocal
 
 # Initialize FastAPI app
 app = FastAPI()
+secrets = get_secret()
+
+# Set the secrets as environment variables
+for key, value in secrets.items():
+    os.environ[key] = value
+    print(key, value)
 
 # Environment variables for API keys and tokens
 api_key = os.getenv("OPENAI_API_KEY")

@@ -20,10 +20,3 @@ def get_secret():
     # Decrypts secret using the associated KMS key.
     secret = get_secret_value_response["SecretString"]
     return json.loads(secret)
-
-
-secrets = get_secret()
-
-# Set the secrets as environment variables
-for key, value in secrets.items():
-    os.environ[key] = value
