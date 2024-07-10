@@ -28,7 +28,6 @@ from langchain.agents import create_tool_calling_agent, AgentExecutor
 from fetch_secrets import get_secret
 from auth import get_api_key  # Import the auth dependency
 
-
 secrets = get_secret()
 
 # Set the secrets as environment variables
@@ -72,9 +71,6 @@ class SMSRequest(BaseModel):
 
 class TextMessage(BaseModelLangchain):
     body: str = FieldLangchain(description="The body of the text message")
-
-
-# Langchain AI Functions
 
 
 def generate_initial_text(product_description, sample, initial_prompt):
@@ -125,15 +121,7 @@ def generate_text_response(conversation, product_description, tools, prompt):
     return {"product_description": product_description, "body": out["output"]}
 
 
-# DB Related Functions
-
-
 def get_db():
-    """
-    Dependency to get the database session.
-
-    :yield: The database session
-    """
     db = SessionLocal()
     try:
         yield db
@@ -142,17 +130,6 @@ def get_db():
 
 
 def write_logs(db: Session, endpoint, request, response, status):
-    """
-    Write logs to the database.
-
-    :param db: The database session
-    :param endpoint: The API endpoint being logged
-    :param request: The request data
-    :param response: The response data
-    :param status: The HTTP status code
-    :return: The log object
-    """
-
     def to_serializable(val):
         if isinstance(val, dict):
             return val
@@ -160,7 +137,7 @@ def write_logs(db: Session, endpoint, request, response, status):
             return val.dict()
         if isinstance(val, Response):
             return {
-                "content": val.body.decode(),  # Decode bytes to string
+                "content": val.body.decode(),
                 "media_type": val.media_type,
             }
         if isinstance(val, FormData):
@@ -169,8 +146,8 @@ def write_logs(db: Session, endpoint, request, response, status):
 
     log = SMS_Logs(
         endpoint=endpoint,
-        request=json.dumps(to_serializable(request)),  # Serialize to JSON
-        response=json.dumps(to_serializable(response)),  # Serialize to JSON
+        request=json.dumps(to_serializable(request)),
+        response=json.dumps(to_serializable(response)),
         status=status,
     )
     db.add(log)
@@ -180,14 +157,6 @@ def write_logs(db: Session, endpoint, request, response, status):
 
 
 def get_or_create_user(db: Session, phone_number: str, name: str = None):
-    """
-    Retrieve a user by phone number, or create a new one if it doesn't exist.
-
-    :param db: The database session
-    :param phone_number: The user's phone number
-    :param name: The user's name (optional)
-    :return: The user object
-    """
     user = db.query(User).filter_by(phone_number=phone_number).first()
     if not user:
         user = User(phone_number=phone_number, name=name)
@@ -198,15 +167,6 @@ def get_or_create_user(db: Session, phone_number: str, name: str = None):
 
 
 def get_agent(db: Session, agent_id: int = None, phone_number: str = None):
-    """
-    Retrieve an agent by agent_id or phone number.
-
-    :param db: The database session
-    :param agent_id: The agent's ID (optional)
-    :param phone_number: The agent's phone number (optional)
-    :return: The agent object
-    :raises ValueError: If neither agent_id nor phone_number is provided
-    """
     if agent_id is not None:
         agent = db.query(Agent).filter_by(agent_id=agent_id).first()
     elif phone_number is not None:
@@ -237,15 +197,6 @@ def get_or_create_conversation(
 def add_message(
     db: Session, conversation_id: int, sender: str, receiver: str, content: str
 ):
-    """
-    Add a message to a conversation.
-
-    :param db: The database session
-    :param conversation_id: The conversation's ID
-    :param sender: The sender's phone number
-    :param receiver: The receiver's phone number
-    :param content: The message content
-    """
     message = Message(
         conversation_id=conversation_id,
         sender_phone_number=sender,
@@ -256,106 +207,68 @@ def add_message(
     db.commit()
 
 
-# ENDPOINTS
-
-
 @app.post("/sms/generate-initial-sms")
 @limiter.limit("20/minute;1000/day")
 def generate_initial_sms(
-    request: GenerateSMSRequest,
+    request: Request,
+    body: GenerateSMSRequest,
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key),
 ):
-    """
-    Endpoint to generate the initial SMS message.
-
-    :param request: The SMS request information
-    :param db: The database session
-    :param api_key: The API key
-    :return: The generated initial SMS text
-    :raises HTTPException: If an error occurs during SMS generation
-    """
     try:
-        agent = get_agent(db, agent_id=request.agent_id)
+        agent = get_agent(db, agent_id=body.agent_id)
         initial_text = generate_initial_text(
-            request.product_description, sample_sms, agent.initial_prompt
+            body.product_description, sample_sms, agent.initial_prompt
         )["body"]
         response = {"initial_text": initial_text}
-        write_logs(db, "generate-initial-sms", request, response, status=200)
+        write_logs(db, "generate-initial-sms", body, response, status=200)
         return {"initial_text": initial_text}
     except Exception as e:
-        write_logs(db, "generate-initial-sms", request, {"error": str(e)}, status=500)
+        write_logs(db, "generate-initial-sms", body, {"error": str(e)}, status=500)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/sms/send-initial-sms")
 @limiter.limit("20/minute;1000/day")
 def send_initial_sms(
-    request: SMSRequest,
+    request: Request,
+    body: SMSRequest,
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key),
 ):
-    """
-    Endpoint to send the initial SMS message.
-
-    :param request: The SMS request information
-    :param db: The database session
-    :param api_key: The API key
-    :return: The Twilio message SID
-    :raises HTTPException: If an error occurs during SMS sending
-    """
     try:
-        # Generate initial text
-        agent_id = request.agent_id
+        agent_id = body.agent_id
         agent = get_agent(db, agent_id=agent_id)
-        # Send SMS using Twilio
         message = client.messages.create(
-            body=request.initial_text,
+            body=body.initial_text,
             from_=twilio_phone_number,
-            to=request.phone_number,
+            to=body.phone_number,
         )
 
-        # Get or create user
-        user = get_or_create_user(db, request.phone_number)
-
+        user = get_or_create_user(db, body.phone_number)
         conversation = get_or_create_conversation(
-            db, user.user_id, agent_id, request.product_description
+            db, user.user_id, agent_id, body.product_description
         )
-
-        # Add initial agent message to the conversation
         add_message(
             db,
             conversation.conversation_id,
             agent.phone_number,
             user.phone_number,
-            request.initial_text,
+            body.initial_text,
         )
         response = {"message_sid": message.sid}
-        write_logs(db, "send-initial-sms", request, response, status=200)
+        write_logs(db, "send-initial-sms", body, response, status=200)
         return response
     except Exception as e:
-        write_logs(db, "send-initial-sms", request, {"error": str(e)}, status=500)
+        write_logs(db, "send-initial-sms", body, {"error": str(e)}, status=500)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/sms/sms")
+@app.post("/sms")
 @limiter.limit("20/minute;1000/day")
 async def sms_reply(
     request: Request, db: Session = Depends(get_db), api_key: str = Depends(get_api_key)
 ):
-    """
-    Endpoint to handle incoming SMS replies and generate appropriate responses.
-
-    :param request: The incoming request
-    :param db: The database session
-    :param api_key: The API key
-    :return: The Twilio response XML
-    :raises HTTPException: If an error occurs during SMS handling
-    """
-
-    # validator = RequestValidator(twilio_auth_token)
-    # url = str(request.url)
-    # signature = request.headers.get("X-Twilio-Signature", "")
     form = await request.form()
     post_vars = {key: value for key, value in form.items()}
     print(post_vars)
@@ -367,17 +280,11 @@ async def sms_reply(
         write_logs(db, "sms", form, {"error": error}, 400)
         raise HTTPException(status_code=400, detail=error)
     try:
-        # Convert form data to dictionary for logging
         form_data = {key: form[key] for key in form.keys()}
-
-        # Get or create user
         agent = get_agent(db, agent_id=None, phone_number=agent_phone_number)
         user = get_or_create_user(db, phone_number)
-
-        # Get or create conversation
         conversation = get_or_create_conversation(db, user.user_id, agent.agent_id)
         print(conversation.messages)
-        # Add user message to the conversation
         add_message(
             db,
             conversation.conversation_id,
@@ -386,15 +293,12 @@ async def sms_reply(
             message_content,
         )
 
-        # Check if the conversation length is zero
         if len(conversation.messages) == 0:
             error = "No conversation history found."
             write_logs(db, "sms", form_data, {"error": error}, 400)
             raise HTTPException(status_code=400, detail=error)
 
         product_description = conversation.product_description
-
-        # Retrieve all previous messages with "user" or "agent" as the speaker
         conversation_history = []
         for msg in conversation.messages:
             if msg.sender_phone_number == user.phone_number:
@@ -410,7 +314,6 @@ async def sms_reply(
             conversation_history, product_description, tools, agent.prompt
         )
 
-        # Add agent message to the conversation
         add_message(
             db,
             conversation.conversation_id,
@@ -419,13 +322,11 @@ async def sms_reply(
             output["body"],
         )
 
-        # Create Twilio response
         resp = MessagingResponse()
         resp.message(output["body"])
         response_xml = str(resp)
         final_response = Response(content=response_xml, media_type="application/xml")
 
-        # Log the final response content in JSON format
         write_logs(
             db,
             "sms",
