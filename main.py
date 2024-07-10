@@ -252,7 +252,7 @@ def send_initial_sms(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key),
 ):
-    form_data = await request.json()
+    form_data = request.json()
     logger.info("Received form data: %s", form_data)
     print(form_data)
     try:
