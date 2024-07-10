@@ -5,6 +5,11 @@ from pydantic import BaseModel
 from typing import List
 from sqlalchemy.orm import Session
 import json
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi import _rate_limit_exceeded_handler
 from langchain.prompts import PromptTemplate
 from twilio.twiml.messaging_response import MessagingResponse
 from twilio.rest import Client
@@ -23,6 +28,7 @@ from langchain.agents import create_tool_calling_agent, AgentExecutor
 from fetch_secrets import get_secret
 from auth import get_api_key  # Import the auth dependency
 
+
 secrets = get_secret()
 
 # Set the secrets as environment variables
@@ -37,6 +43,11 @@ from models import Conversation, Message, engine, SessionLocal
 
 # Initialize FastAPI app
 app = FastAPI()
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # Environment variables for API keys and tokens
 api_key = os.getenv("OPENAI_API_KEY")
@@ -249,6 +260,7 @@ def add_message(
 
 
 @app.post("/sms/generate-initial-sms")
+@limiter.limit("20/minute;1000/day")
 def generate_initial_sms(
     request: GenerateSMSRequest,
     db: Session = Depends(get_db),
@@ -277,6 +289,7 @@ def generate_initial_sms(
 
 
 @app.post("/sms/send-initial-sms")
+@limiter.limit("20/minute;1000/day")
 def send_initial_sms(
     request: SMSRequest,
     db: Session = Depends(get_db),
@@ -326,6 +339,7 @@ def send_initial_sms(
 
 
 @app.post("/sms/sms")
+@limiter.limit("20/minute;1000/day")
 async def sms_reply(
     request: Request, db: Session = Depends(get_db), api_key: str = Depends(get_api_key)
 ):
