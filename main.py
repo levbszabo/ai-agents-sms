@@ -325,7 +325,7 @@ def send_initial_sms(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/sms")
+@app.post("/sms/sms")
 async def sms_reply(
     request: Request, db: Session = Depends(get_db), api_key: str = Depends(get_api_key)
 ):
