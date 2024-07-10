@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import APIKeyHeader
 from fetch_secrets import get_secret
 import os
@@ -19,7 +19,8 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME)
 API_KEY = os.getenv("SMS_API_KEY")
 
 
-async def get_api_key(api_key: str = Depends(api_key_header)):
+async def get_api_key(request: Request):
+    api_key = request.query_params.get("api_key")
     if api_key != API_KEY:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
