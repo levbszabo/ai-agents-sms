@@ -167,13 +167,25 @@ def get_or_create_user(db: Session, phone_number: str, name: str = None):
 
 
 def get_agent(db: Session, agent_id: int = None, phone_number: str = None):
+    """
+    Retrieve an agent by agent_id or phone number.
+
+    :param db: The database session
+    :param agent_id: The agent's ID (optional)
+    :param phone_number: The agent's phone number (optional)
+    :return: The agent object
+    :raises ValueError: If neither agent_id nor phone_number is provided
+    """
+    if agent_id is None and phone_number is None:
+        raise ValueError("Either agent_id or phone_number must be provided")
+
     if agent_id is not None:
         agent = db.query(Agent).filter_by(agent_id=agent_id).first()
-    elif phone_number is not None:
-        agent = db.query(Agent).filter_by(phone_number=phone_number).first()
+        return agent
+
     else:
-        raise ValueError("Either agent_id or agent_phone must be provided.")
-    return agent
+        agent = db.query(Agent).filter_by(phone_number=phone_number).first()
+        return agent
 
 
 def get_or_create_conversation(
@@ -264,7 +276,7 @@ def send_initial_sms(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/sms")
+@app.post("/sms/sms")
 @limiter.limit("20/minute;1000/day")
 async def sms_reply(
     request: Request, db: Session = Depends(get_db), api_key: str = Depends(get_api_key)
