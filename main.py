@@ -21,7 +21,7 @@ from tools import CalendarBookingTool
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 from fetch_secrets import get_secret
-
+from auth import get_api_key  # Import the auth dependency
 
 secrets = get_secret()
 
@@ -37,7 +37,6 @@ from models import Conversation, Message, engine, SessionLocal
 
 # Initialize FastAPI app
 app = FastAPI()
-
 
 # Environment variables for API keys and tokens
 api_key = os.getenv("OPENAI_API_KEY")
@@ -250,12 +249,17 @@ def add_message(
 
 
 @app.post("/sms/generate-initial-sms")
-def generate_initial_sms(request: GenerateSMSRequest, db: Session = Depends(get_db)):
+def generate_initial_sms(
+    request: GenerateSMSRequest,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key),
+):
     """
     Endpoint to generate the initial SMS message.
 
     :param request: The SMS request information
     :param db: The database session
+    :param api_key: The API key
     :return: The generated initial SMS text
     :raises HTTPException: If an error occurs during SMS generation
     """
@@ -273,12 +277,17 @@ def generate_initial_sms(request: GenerateSMSRequest, db: Session = Depends(get_
 
 
 @app.post("/sms/send-initial-sms")
-def send_initial_sms(request: SMSRequest, db: Session = Depends(get_db)):
+def send_initial_sms(
+    request: SMSRequest,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key),
+):
     """
     Endpoint to send the initial SMS message.
 
     :param request: The SMS request information
     :param db: The database session
+    :param api_key: The API key
     :return: The Twilio message SID
     :raises HTTPException: If an error occurs during SMS sending
     """
@@ -317,12 +326,15 @@ def send_initial_sms(request: SMSRequest, db: Session = Depends(get_db)):
 
 
 @app.post("/sms/sms")
-async def sms_reply(request: Request, db: Session = Depends(get_db)):
+async def sms_reply(
+    request: Request, db: Session = Depends(get_db), api_key: str = Depends(get_api_key)
+):
     """
     Endpoint to handle incoming SMS replies and generate appropriate responses.
 
     :param request: The incoming request
     :param db: The database session
+    :param api_key: The API key
     :return: The Twilio response XML
     :raises HTTPException: If an error occurs during SMS handling
     """
