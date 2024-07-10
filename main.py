@@ -27,6 +27,10 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 from fetch_secrets import get_secret
 from auth import get_api_key  # Import the auth dependency
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 secrets = get_secret()
 
@@ -248,6 +252,9 @@ def send_initial_sms(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key),
 ):
+    form_data = await request.json()
+    logger.info("Received form data: %s", form_data)
+    print(form_data)
     try:
         agent_id = body.agent_id
         agent = get_agent(db, agent_id=agent_id)
