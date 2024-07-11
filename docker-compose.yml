@@ -8,6 +8,14 @@ services:
       - "8001"
     environment:
       - AWS_DEFAULT_REGION=us-east-1
+  
+  ai-cmo:
+    build: ./ai-cmo
+    container_name: ai-cmo
+    expose:
+      - "8002"
+    environment:
+      - AWS_DEFAULT_REGION=us-east-1
 
   nginx:
     image: nginx:latest
@@ -20,3 +28,4 @@ services:
       - /etc/letsencrypt:/etc/letsencrypt:ro  # Mount the letsencrypt directory as read-only
     depends_on:
       - ai-agents-sms
+      - ai-cmo
